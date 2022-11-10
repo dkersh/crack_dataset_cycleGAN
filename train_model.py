@@ -3,8 +3,8 @@ import argparse
 from glob import glob
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-n_epochs', type=int, default=1)
-parser.add_argument('-batch_size', type=int, default=1)
+parser.add_argument('-n_epochs', type=int, default=1000)
+parser.add_argument('-batch_size', type=int, default=4)
 parser.add_argument('-img_height', type=int, default=128)
 parser.add_argument('-img_width', type=int, default=128)
 
