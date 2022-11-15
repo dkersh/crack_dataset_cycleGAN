@@ -27,6 +27,8 @@ class CycleGAN:
             height (_type_): _description_
             width (_type_): _description_
         """
+        self.first_test = True
+        self.test_data = None
         self.height = height
         self.width = width
         self.data_generator = None
@@ -83,33 +85,39 @@ class CycleGAN:
         self.d_model_B.save("models/d_model_B.h5")
 
     def test_model(self, n):
-        X_real_A, _ = self.data_generator.generate_real_samples(1, self.d_model_A.output_shape[1])
-        X_mask_B, _ = self.data_generator.generate_mask_samples(1, self.d_model_A.output_shape[1])
+        if self.first_test == True:
+            X_real_A, _ = self.data_generator.generate_real_samples(4, self.d_model_A.output_shape[1])
+            X_mask_B, _ = self.data_generator.generate_mask_samples(4, self.d_model_A.output_shape[1])
+            self.first_test = False
+            self.test_data = [X_real_A, X_mask_B]
+        X_real_A, X_mask_B = self.test_data 
         X_real_A2B = self.g_model_AB.predict(X_real_A)
         X_mask_B2A = self.g_model_BA.predict(X_mask_B)
         X_real_A2B2A = self.g_model_BA.predict(X_real_A2B)
         X_real_B2A2B = self.g_model_AB.predict(X_mask_B2A)
 
-        plt.figure(figsize=(20, 10))
-        plt.subplot(2, 3, 1)
-        plt.imshow(np.squeeze(X_real_A) * -1, cmap="gist_gray")
-        plt.axis(False)
-        plt.subplot(2, 3, 2)
-        plt.imshow(np.squeeze(X_real_A2B))
-        plt.axis(False)
-        plt.subplot(2, 3, 3)
-        plt.imshow(np.squeeze(X_real_A2B2A) * -1, cmap="gist_gray")
-        plt.axis(False)
+        plt.figure(figsize=(10, 20))
+        for i in range(len(X_real_A)):
+            plt.subplot(8, 3, 1+(i*3))
+            plt.imshow(np.squeeze(X_real_A[i]) * -1, cmap="gist_gray")
+            plt.axis(False)
+            plt.subplot(8, 3, 2+(i*3))
+            plt.imshow(np.squeeze(X_real_A2B[i]))
+            plt.axis(False)
+            plt.subplot(8, 3, 3+(i*3))
+            plt.imshow(np.squeeze(X_real_A2B2A[i]) * -1, cmap="gist_gray")
+            plt.axis(False)
 
-        plt.subplot(2, 3, 4)
-        plt.imshow(np.squeeze(X_mask_B))
-        plt.axis(False)
-        plt.subplot(2, 3, 5)
-        plt.imshow(np.squeeze(X_mask_B2A) * -1, cmap="gist_gray")
-        plt.axis(False)
-        plt.subplot(2, 3, 6)
-        plt.imshow(np.squeeze(X_real_B2A2B))
-        plt.axis(False)
+        for i in range(len(X_mask_B)):
+            plt.subplot(8, 3, 13+(i*3))
+            plt.imshow(np.squeeze(X_mask_B[i]))
+            plt.axis(False)
+            plt.subplot(8, 3, 14+(i*3))
+            plt.imshow(np.squeeze(X_mask_B2A[i]) * -1, cmap="gist_gray")
+            plt.axis(False)
+            plt.subplot(8, 3, 15+(i*3))
+            plt.imshow(np.squeeze(X_real_B2A2B[i]))
+            plt.axis(False)
 
         plt.savefig("models/best_g_model_epoch_%0.6d.png" % n)
         plt.close()
@@ -316,7 +324,7 @@ class CompositeModel:
 
 
 class DataGenerator:
-    def __init__(self, filenames, height, width):
+    def __init__(self, filenames, y_filenames, height, width):
         """_summary_
 
         Args:
@@ -325,7 +333,9 @@ class DataGenerator:
             width (_type_): _description_
         """
         self.filenames = filenames
+        self.y_filenames = y_filenames
         self.images = None
+        self.real_cracks = None
         self.height = height
         self.width = width
         self.seq = iaa.Sequential([iaa.Fliplr(0.5), iaa.Flipud(0.5)])
@@ -353,6 +363,16 @@ class DataGenerator:
             img = 255 - cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
             img = self.normalise_image(img)
             self.images += [img]
+
+        self.real_cracks = []
+        for f in self.y_filenames:
+            img = cv2.imread(f, -1)
+            img = cv2.resize(img, (self.height, self.width), interpolation=cv2.INTER_AREA)
+            img = (img - np.amin(img)) / (np.amax(img) - np.amin(img))
+            #img = img.astype(bool).astype(int)
+            img = self.normalise_image(img)
+            self.real_cracks += [img]
+        
 
     def generate_crack(self):
         """_summary_
@@ -435,7 +455,14 @@ class DataGenerator:
         X = np.zeros((n_samples, self.height, self.width, 1))
 
         for i in range(n_samples):
-            img = self.normalise_image(self.generate_crack())
+            if np.random.uniform(0, 1) > 0.5:
+                img = self.generate_crack()
+                img = self.normalise_image(img)
+            else:
+                ind = np.random.randint(0, len(self.real_cracks))
+                img = self.real_cracks[ind]
+                #img = img.astype(bool).astype(int)
+            
             X[i, :, :, 0] = self.seq(images=img)
 
         Y = np.ones((n_samples, patch_shape, patch_shape, 1))
