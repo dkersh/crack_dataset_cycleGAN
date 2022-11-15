@@ -20,11 +20,11 @@ import matplotlib.pyplot as plt
 
 class CycleGAN:
     def __init__(self, height, width) -> None:
-        """_summary_
+        """One channel image-based CycleGAN neural network model.
 
         Args:
-            height (_type_): _description_
-            width (_type_): _description_
+            height (int): Input image height
+            width (int): Input image width.
         """
         self.first_test = True
         self.test_data = None
@@ -46,15 +46,15 @@ class CycleGAN:
         ).build()
 
     def update_image_pool(self, image_pool, images, max_size=50):
-        """_summary_
+        """Image pooling used to assist with model training. List of previously used images which is updated every epoch.
 
         Args:
-            image_pool (_type_): _description_
-            images (_type_): _description_
-            max_size (int, optional): _description_. Defaults to 50.
+            image_pool (list): Image pool list
+            images (numpy array): Images to update the image pool
+            max_size (int, optional): Maximum size of the image pool. Defaults to 50.
 
         Returns:
-            _type_: _description_
+            numpy array: Selected images for training.
         """
         selected = list()
 
@@ -75,7 +75,8 @@ class CycleGAN:
         return np.array(selected)
 
     def save_model(self):
-        """_summary_"""
+        """Save Models to file."""
+
         if not os.path.exists("models"):
             os.makedirs("models")
         self.g_model_AB.save("models/g_model_AB.h5")
@@ -84,6 +85,11 @@ class CycleGAN:
         self.d_model_B.save("models/d_model_B.h5")
 
     def test_model(self, n):
+        """Test the model with the same images every time a new minimum loss is found. Save plot to file.
+
+        Args:
+            n (int): epoch number
+        """
         if self.first_test == True:
             X_real_A, _ = self.data_generator.generate_real_samples(4, self.d_model_A.output_shape[1])
             X_mask_B, _ = self.data_generator.generate_mask_samples(4, self.d_model_A.output_shape[1])
@@ -122,14 +128,14 @@ class CycleGAN:
         plt.close()
 
     def train(self, n_epochs, n_batch):
-        """_summary_
+        """Model train model.
 
         Args:
-            n_epochs (_type_): _description_
-            n_batch (_type_): _description_
+            n_epochs (int): Number of training epochs.
+            n_batch (int): Batch_size
 
         Raises:
-            ValueError: _description_
+            ValueError: Raise error if no data generator has been allocated.
         """
         if self.data_generator == None:
             raise ValueError("Please allocate a data generator")
@@ -181,12 +187,24 @@ class CycleGAN:
 
 class Discriminator:
     def __init__(self, height, width, n_filt) -> None:
+        """CycleGAN Discriminator model. Used to distinguishing between real and fake samples.
+
+        Args:
+            height (int): Image height.
+            width (int): Image width.
+            n_filt (int): Base number of Convolutional filters.
+        """
         self.n_filt = n_filt
         self.height = height
         self.width = width
         self.input_shape = (self.height, self.width, 1)
 
     def build(self):
+        """Build discriminator model.
+
+        Returns:
+            model: Return compiled keras model.
+        """
         # weight initialisation
         init = RandomNormal(stddev=0.02, seed=1)
         input_img = Input(shape=self.input_shape)
@@ -225,6 +243,14 @@ class Discriminator:
 
 class Generator:
     def __init__(self, height, width, n_filt, n_resnet_layers=6):
+        """CycleGAN Generator model. Used to generator new real / fake samples.
+
+        Args:
+            height (int): Image height.
+            width (int): Image width.
+            n_filt (int): Base number of convolution filters.
+            n_resnet_layers (int, optional): Number of ResNet layers used. Defaults to 6.
+        """
         self.n_filt = n_filt
         self.n_resnet_layers = n_resnet_layers
         self.height = height
@@ -232,6 +258,16 @@ class Generator:
         self.input_shape = (self.height, self.width, 1)
 
     def _resnet_block(self, n_filt, input_layer):
+        """Resnet block as described in He et al. Deep Residual Learning for Image Recognition (2016)
+        https://towardsdatascience.com/residual-blocks-building-blocks-of-resnet-fd90ca15d6ec
+
+        Args:
+            n_filt (int): Base number of convolution filters
+            input_layer (keras layer): Input layer
+
+        Returns:
+            keras layer: residual layer
+        """
         # weight initialisation
         init = RandomNormal(stddev=0.2, seed=1)
 
@@ -245,12 +281,26 @@ class Generator:
         return Concatenate()([r, input_layer])
 
     def upsample_block(self, n_filt, input_layer):
+        """Upsample block used to combat checkerboard artifacting in CycleGAN models.
+
+        Args:
+            n_filt (int): Base number of filters
+            input_layer (keras layer): input layer
+
+        Returns:
+            keras layer: upsample block
+        """
         x = UpSampling2D(size=(2, 2))(input_layer)
         x = Conv2D(n_filt, (3, 3), padding='same')(x)
 
         return x
 
     def build(self):
+        """Build keras neural network model.
+
+        Returns:
+            keras model: keras generator model
+        """
         # Weight initialisation
         init = RandomNormal(stddev=0.02, seed=1)
         input_img = Input(shape=self.input_shape)
@@ -289,7 +339,16 @@ class Generator:
 
 
 class CompositeModel:
-    def __init__(self, height, width, g_model1, g_model2, d_model) -> None:
+    def __init__(self, height, width, g_model1, g_model2, d_model):
+        """CycleGAN composite model. What is actually trained when training a CycleGAN model.
+
+        Args:
+            height (int): image height
+            width (int): image width
+            g_model1 (keras model): first generator model
+            g_model2 (keras model): second generator model
+            d_model (keras model): discriminator to distinguish real and fake samples.
+        """
         self.height = height
         self.width = width
         self.input_shape = (self.height, self.width, 1)
@@ -298,6 +357,11 @@ class CompositeModel:
         self.d_model = d_model
 
     def build(self):
+        """Build composite CycleGAN model
+
+        Returns:
+            keras model: CycleGAN composite model
+        """
         self.g_model1.trainable = True
         self.g_model2.trainable = False
         self.d_model.trainable = False
@@ -324,12 +388,13 @@ class CompositeModel:
 
 class DataGenerator:
     def __init__(self, filenames, y_filenames, height, width):
-        """_summary_
+        """Datagenerator class for providing samples for the CycleGAN mdoel
 
         Args:
-            filenames (_type_): _description_
-            height (_type_): _description_
-            width (_type_): _description_
+            filenames (list): List of A domain images.
+            y_filenames (list): List of B domain images
+            height (int): Image height
+            width (int): Image width
         """
         self.filenames = filenames
         self.y_filenames = y_filenames
@@ -342,19 +407,19 @@ class DataGenerator:
         self.load_images()
 
     def normalise_image(self, image):
-        """_summary_
+        """Normalise image between 1 and -1 for CycleGAN training.
 
         Args:
-            image (_type_): _description_
+            image (numpy array): input image
 
         Returns:
-            _type_: _description_
+            numpy array: Normalised image.
         """
 
         return ((image - np.amin(image)) / (np.amax(image) - np.amin(image))) * 2 - 1
 
     def load_images(self):
-        """_summary_"""
+        """Load image from file and store in class attributes"""
         self.images = []
         for f in self.filenames:
             img = cv2.imread(f, -1)
@@ -374,10 +439,10 @@ class DataGenerator:
         
 
     def generate_crack(self):
-        """_summary_
+        """Random walk algorithm for simulating a crack.
 
         Returns:
-            _type_: _description_
+            numpy array: simulated crack image.
         """
         if np.random.randint(low=0, high=2) == 0:
             prev_point = [np.random.randint(low=0, high=self.height), 0]
@@ -417,14 +482,14 @@ class DataGenerator:
         return crack_image.astype(bool).astype(int)
 
     def generate_real_samples(self, n_samples, patch_shape=None):
-        """_summary_
+        """Method for generating real samples (i.e. real images of cracks)
 
         Args:
-            n_samples (_type_): _description_
-            patch_shape (_type_, optional): _description_. Defaults to None.
+            n_samples (int): Number of samples
+            patch_shape (int, optional): Patch shape as prescribed by PatchGAN. Defaults to None.
 
         Returns:
-            _type_: _description_
+            numpy array, numpy array: array of samples, and array of labels (all ones because real)
         """
 
         X = np.zeros((n_samples, self.height, self.width, 1))
@@ -441,14 +506,14 @@ class DataGenerator:
         return X, Y
 
     def generate_mask_samples(self, n_samples, patch_shape=None):
-        """_summary_
+        """Method for generating simulating cracks and crack segmentations.
 
         Args:
-            n_samples (_type_): _description_
-            patch_shape (_type_, optional): _description_. Defaults to None.
+            n_samples (int): Number of samples
+            patch_shape (int, optional): Patch shape as prescribed by PatchGAN. Defaults to None.
 
         Returns:
-            _type_: _description_
+            numpy array, numpy array: array of samples, and array of labels (all ones because real)
         """
 
         X = np.zeros((n_samples, self.height, self.width, 1))
@@ -469,6 +534,17 @@ class DataGenerator:
         return X, Y
 
     def generate_fake_samples(self, g_model, AB, patch_shape=None):
+        """Method for generating fake samples using a generator model. Since they're generated with a model, they are
+        considered fake i.e. synthetic.
+
+        Args:
+            g_model (keras model): Generator model
+            AB (numpy array): input samples
+            patch_shape (int, optional): Patch shape as prescribed by PatchGAN. Defaults to None.
+
+        Returns:
+            numpy array, numpy array: array of samples, and array of labels (all zeros because fake)
+        """
         X = g_model.predict(AB, verbose=0)
         Y = np.zeros((len(X), patch_shape, patch_shape, 1))
 
