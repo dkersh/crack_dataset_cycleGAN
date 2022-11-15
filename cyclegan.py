@@ -6,7 +6,6 @@ from tensorflow.keras.layers import (
     Activation,
     Concatenate,
     Conv2D,
-    Conv2DTranspose,
     Input,
     LeakyReLU,
     UpSampling2D
@@ -395,7 +394,7 @@ class DataGenerator:
         n_vertices = 10
         crack_image = np.zeros((self.height, self.width))
 
-        t = np.random.randint(1, 5)
+        t = np.random.randint(1, 3)
         for _ in range(np.random.randint(1, 3)):
             for _ in range(n_cracks):
                 for _ in range(n_vertices):
