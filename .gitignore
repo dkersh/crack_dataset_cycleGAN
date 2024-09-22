@@ -4,3 +4,5 @@ initial_models
 initial_models2
 initial_models3
 models
+.venv
+*.h5

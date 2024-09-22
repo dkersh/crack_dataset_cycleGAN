@@ -523,7 +523,7 @@ class DataGenerator:
                 img = self.generate_crack()
                 img = self.normalise_image(img)
             else:
-                ind = np.random.randint(0, len(self.real_cracks))
+                ind = np.random.randint(low=0, high=len(self.real_cracks))
                 img = self.real_cracks[ind]
                 #img = img.astype(bool).astype(int)
             

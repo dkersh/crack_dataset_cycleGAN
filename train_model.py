@@ -15,8 +15,9 @@ batch_size = args.batch_size
 img_height = args.img_height
 img_width = args.img_width
 
-filenames = glob('crack_segmentation_dataset/images/DeepCrack*.jpg')
-y_filenames = glob('crack_segmentation_dataset/masks/CFD*.jpg')
+filenames = glob('crack_segmentation_dataset/train_img/*.jpg')
+print(len(filenames))
+y_filenames = glob('crack_segmentation_dataset/train_lab/*.png')
 
 cyclegan_model = cyclegan.CycleGAN(img_height, img_width)
 cyclegan_model.data_generator = cyclegan.DataGenerator(filenames, y_filenames, 128, 128)
